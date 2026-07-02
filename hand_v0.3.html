@@ -1,0 +1,689 @@
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>✨ Hand Music Visualizer Pro</title>
+<style>
+    :root {
+        --theme-color: #ff7eb3; /* Default Pink */
+        --theme-glow: rgba(255, 126, 179, 0.6);
+        --bg-color: #050508;
+        --glass-bg: rgba(20, 20, 30, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-main: #ffffff;
+        --text-dim: #888899;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+    body {
+        background: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    #video-container {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 1;
+    }
+
+    video {
+        position: absolute;
+        width: 100%; height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        opacity: 0.3; /* Slight video visibility */
+    }
+
+    canvas {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    /* UI Overlay */
+    #ui-layer {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .pointer-events-auto { pointer-events: auto; }
+
+    /* Top Bar */
+    #top-bar {
+        position: absolute;
+        top: 0; left: 0; width: 100%;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    #title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--theme-color);
+        text-shadow: 0 0 10px var(--theme-glow);
+        background: var(--glass-bg);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+    }
+
+    #hud {
+        display: flex;
+        gap: 15px;
+        background: var(--glass-bg);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+    }
+
+    .stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.7rem;
+    }
+
+    .stat-val {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--theme-color);
+        text-shadow: 0 0 5px var(--theme-glow);
+    }
+
+    .stat-label {
+        color: var(--text-dim);
+        font-size: 0.6rem;
+        margin-top: 2px;
+    }
+
+    /* Center Note Display */
+    #note-display {
+        position: absolute;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 4rem;
+        font-weight: 800;
+        color: var(--theme-color);
+        text-shadow: 0 0 30px var(--theme-glow), 0 0 60px var(--theme-glow);
+        opacity: 0.8;
+        transition: all 0.2s ease;
+    }
+
+    /* Instrument Selector */
+    #instrument-bar {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        background: var(--glass-bg);
+        padding: 8px;
+        border-radius: 30px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+    }
+
+    .inst-btn {
+        padding: 6px 14px;
+        border-radius: 20px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text-dim);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .inst-btn.active {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--theme-color);
+        border-color: var(--theme-color);
+        box-shadow: 0 0 10px var(--theme-glow);
+    }
+
+    /* Bottom Controls */
+    #bottom-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+    }
+
+    .ctrl-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--text-main);
+        font-size: 0.8rem;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+    }
+
+    .ctrl-btn:hover { background: rgba(255,255,255,0.2); }
+
+    /* Start Screen */
+    #start-screen {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(5, 5, 8, 0.95);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        pointer-events: auto;
+    }
+
+    #start-screen.hidden { display: none; }
+
+    #start-btn {
+        padding: 15px 40px;
+        font-size: 1.2rem;
+        border: none;
+        border-radius: 30px;
+        background: var(--theme-color);
+        color: #000;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 0 20px var(--theme-glow);
+        transition: transform 0.2s;
+    }
+
+    #start-btn:hover { transform: scale(1.05); }
+
+    /* Help Modal */
+    #help-modal {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        padding: 25px;
+        border-radius: 15px;
+        backdrop-filter: blur(15px);
+        z-index: 50;
+        display: none;
+        pointer-events: auto;
+        max-width: 90%;
+    }
+
+    #help-modal.visible { display: block; }
+    #help-modal h2 { color: var(--theme-color); margin-bottom: 15px; }
+    #help-modal ul { list-style: none; }
+    #help-modal li { margin-bottom: 10px; color: var(--text-dim); font-size: 0.9rem; }
+    #help-modal li strong { color: var(--text-main); }
+    .close-help { position: absolute; top: 10px; right: 15px; cursor: pointer; font-size: 1.2rem; }
+
+</style>
+</head>
+<body>
+
+<div id="video-container">
+    <video id="input-video" playsinline></video>
+    <canvas id="visualizer-canvas"></canvas>
+</div>
+
+<div id="ui-layer">
+    <div id="top-bar">
+        <div id="title">✨ HAND MUSIC VISUALIZER PRO</div>
+        <div id="hud">
+            <div class="stat"><span class="stat-val" id="stat-hands">0</span><span class="stat-label">HANDS</span></div>
+            <div class="stat"><span class="stat-val" id="stat-fingers">0</span><span class="stat-label">FINGERS</span></div>
+            <div class="stat"><span class="stat-val" id="stat-note">--</span><span class="stat-label">NOTE</span></div>
+            <div class="stat"><span class="stat-val" id="stat-vol">0%</span><span class="stat-label">VOL</span></div>
+            <div class="stat"><span class="stat-val" id="stat-fps">0</span><span class="stat-label">FPS</span></div>
+        </div>
+    </div>
+
+    <div id="note-display">--</div>
+
+    <div id="instrument-bar" class="pointer-events-auto">
+        <button class="inst-btn active" data-inst="0">🌌 Ethereal</button>
+        <button class="inst-btn" data-inst="1">💎 Crystal</button>
+        <button class="inst-btn" data-inst="2">🔊 Deep Bass</button>
+        <button class="inst-btn" data-inst="3">🎼 Choir Pad</button>
+        <button class="inst-btn" data-inst="4"> Orchestra</button>
+    </div>
+
+    <div id="bottom-controls" class="pointer-events-auto">
+        <button class="ctrl-btn" id="btn-help">❓ Help</button>
+        <button class="ctrl-btn" id="btn-fullscreen">⛶ Fullscreen</button>
+        <button class="ctrl-btn" id="btn-camera">📷 Camera</button>
+    </div>
+</div>
+
+<div id="start-screen">
+    <h1 style="color: var(--theme-color); margin-bottom: 20px; text-shadow: 0 0 20px var(--theme-glow);">✨ Hand Music Visualizer Pro</h1>
+    <p style="color: var(--text-dim); margin-bottom: 30px;">Move your hands to create music & visuals</p>
+    <button id="start-btn">🎵 Start Playing</button>
+</div>
+
+<div id="help-modal">
+    <span class="close-help" id="close-help">&times;</span>
+    <h2>How to Play</h2>
+    <ul>
+        <li><strong>← → Move Hand:</strong> Change Pitch</li>
+        <li><strong>↑ ↓ Move Hand:</strong> Volume + Filter</li>
+        <li><strong>🖐️ Finger Count:</strong> Switch Instrument (1-5 fingers)</li>
+        <li><strong>Move Fast:</strong> More Particles</li>
+        <li><strong>🤏 Pinch:</strong> Special Effect</li>
+    </ul>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<script>
+    // ==========================================
+    // CONFIG & THEMES
+    // ==========================================
+    const THEMES = [
+        { name: 'Ethereal', color: '#ff7eb3', glow: 'rgba(255, 126, 179, 0.6)', wave: 'sine', detune: 5 },
+        { name: 'Crystal', color: '#00f2fe', glow: 'rgba(0, 242, 254, 0.6)', wave: 'triangle', detune: 0 },
+        { name: 'Deep Bass', color: '#ff0844', glow: 'rgba(255, 8, 68, 0.6)', wave: 'sawtooth', detune: -12 },
+        { name: 'Choir Pad', color: '#00ff87', glow: 'rgba(0, 255, 135, 0.6)', wave: 'sine', detune: 7 },
+        { name: 'Orchestra', color: '#f9d423', glow: 'rgba(249, 212, 35, 0.6)', wave: 'square', detune: 0 }
+    ];
+
+    const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+    const NOTE_NAMES = ['C4','D4','E4','G4','A4','C5','D5','E5','G5','A5','C6'];
+
+    let state = {
+        isRunning: false,
+        currentInstrument: 0,
+        hands: [],
+        prevHandPos: [{x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}],
+        targetPitch: [0.5, 0.5],
+        currentPitch: [0.5, 0.5],
+        targetFilter: 1000,
+        currentFilter: 1000,
+        targetVol: 0,
+        currentVol: 0,
+        fps: 0,
+        frameCount: 0,
+        lastFpsUpdate: 0
+    };
+
+    // DOM Elements
+    const videoElement = document.getElementById('input-video');
+    const canvasElement = document.getElementById('visualizer-canvas');
+    const ctx = canvasElement.getContext('2d');
+    const noteDisplay = document.getElementById('note-display');
+    const instBtns = document.querySelectorAll('.inst-btn');
+
+    // ==========================================
+    // AUDIO ENGINE
+    // ==========================================
+    let audioCtx, masterGain, filterNode;
+    let activeVoices = [];
+
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0;
+        filterNode = audioCtx.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.value = 1000;
+        filterNode.Q.value = 2;
+        filterNode.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+    }
+
+    function playNote(freq, handIndex) {
+        const inst = THEMES[state.currentInstrument];
+        if (activeVoices[handIndex]) activeVoices[handIndex].stop();
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.type = inst.wave;
+        osc.frequency.value = freq;
+        osc.detune.value = inst.detune;
+
+        const now = audioCtx.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.2, now + 0.05);
+        
+        osc.connect(gainNode);
+        gainNode.connect(filterNode);
+        osc.start();
+
+        activeVoices[handIndex] = {
+            osc, gainNode,
+            stop: () => {
+                const t = audioCtx.currentTime;
+                gainNode.gain.cancelScheduledValues(t);
+                gainNode.gain.setValueAtTime(gainNode.gain.value, t);
+                gainNode.gain.linearRampToValueAtTime(0, t + 0.1);
+                osc.stop(t + 0.15);
+            }
+        };
+    }
+
+    function updateAudio() {
+        if (!audioCtx) return;
+        const smooth = 0.15;
+        state.currentPitch[0] += (state.targetPitch[0] - state.currentPitch[0]) * smooth;
+        state.currentPitch[1] += (state.targetPitch[1] - state.currentPitch[1]) * smooth;
+        state.currentFilter += (state.targetFilter - state.currentFilter) * smooth;
+        state.currentVol += (state.targetVol - state.currentVol) * smooth;
+
+        filterNode.frequency.setTargetAtTime(state.currentFilter, audioCtx.currentTime, 0.01);
+        masterGain.gain.setTargetAtTime(state.currentVol, audioCtx.currentTime, 0.01);
+
+        state.hands.forEach((hand, i) => {
+            if (i < 2) {
+                const noteIndex = Math.floor(state.currentPitch[i] * (SCALE.length - 1));
+                const freq = SCALE[noteIndex];
+                if (!hand.lastNote || Math.abs(hand.lastNote - noteIndex) > 0) {
+                    playNote(freq, i);
+                    hand.lastNote = noteIndex;
+                    document.getElementById('stat-note').textContent = NOTE_NAMES[noteIndex];
+                    noteDisplay.textContent = NOTE_NAMES[noteIndex];
+                }
+            }
+        });
+
+        if (state.hands.length === 0) {
+            activeVoices.forEach(v => v && v.stop());
+            activeVoices = [];
+            noteDisplay.textContent = '--';
+        } else if (state.hands.length === 1 && activeVoices[1]) {
+            activeVoices[1].stop();
+            activeVoices[1] = null;
+        }
+    }
+
+    // ==========================================
+    // VISUAL ENGINE (With Dynamic Colors)
+    // ==========================================
+    let particles = [];
+
+    function resizeCanvas() {
+        canvasElement.width = window.innerWidth;
+        canvasElement.height = window.innerHeight;
+    }
+
+    function drawVisuals() {
+        // Fade background
+        ctx.fillStyle = 'rgba(5, 5, 8, 0.2)';
+        ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+        const theme = THEMES[state.currentInstrument];
+        const color = theme.color;
+
+        // Draw Waveform (Middle)
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        const waveY = canvasElement.height * 0.55;
+        for (let x = 0; x < canvasElement.width; x += 10) {
+            const y = waveY + Math.sin(x * 0.02 + Date.now() * 0.005) * (state.currentVol * 100);
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        // Draw Bars (Bottom Left)
+        const barCount = 5;
+        const barWidth = 20;
+        const maxBarHeight = 100;
+        for (let i = 0; i < barCount; i++) {
+            const h = (state.currentVol * maxBarHeight) * (0.5 + Math.random() * 0.5);
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.6;
+            ctx.fillRect(20 + i * (barWidth + 5), canvasElement.height - h - 20, barWidth, h);
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Draw Hands & Particles
+        state.hands.forEach((hand, handIdx) => {
+            if (!hand.landmarks) return;
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = color;
+
+            // Simple skeleton
+            const connections = [[0,5],[5,9],[9,13],[13,17],[0,17],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20],[0,1,2,3,4]];
+            ctx.beginPath();
+            connections.forEach(chain => {
+                for (let i = 0; i < chain.length - 1; i++) {
+                    const p1 = hand.landmarks[chain[i]];
+                    const p2 = hand.landmarks[chain[i+1]];
+                    ctx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+                    ctx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+                }
+            });
+            ctx.stroke();
+
+            // Fingertips & Particles
+            const fingertips = [4, 8, 12, 16, 20];
+            fingertips.forEach(idx => {
+                const tip = hand.landmarks[idx];
+                const px = tip.x * canvasElement.width;
+                const py = tip.y * canvasElement.height;
+                
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                const prev = state.prevHandPos[handIdx] || {x: 0.5, y: 0.5};
+                const vel = Math.hypot(tip.x - prev.x, tip.y - prev.y) * 20;
+
+                if (vel > 0.5 && particles.length < 300) {
+                    particles.push({
+                        x: px, y: py,
+                        vx: (Math.random() - 0.5) * vel,
+                        vy: (Math.random() - 0.5) * vel,
+                        life: 1.0,
+                        color: color
+                    });
+                }
+            });
+        });
+
+        // Update Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02;
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            } else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+    }
+
+    // ==========================================
+    // HAND TRACKING
+    // ==========================================
+    let handsModule;
+
+    function initHands() {
+        handsModule = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        handsModule.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.5
+        });
+        handsModule.onResults(onHandResults);
+    }
+
+    function countFingers(landmarks, handedness) {
+        let count = 0;
+        const isRight = handedness === 'Right';
+        if (isRight ? landmarks[4].x < landmarks[3].x : landmarks[4].x > landmarks[3].x) count++;
+        if (landmarks[8].y < landmarks[6].y) count++;
+        if (landmarks[12].y < landmarks[10].y) count++;
+        if (landmarks[16].y < landmarks[14].y) count++;
+        if (landmarks[20].y < landmarks[18].y) count++;
+        return count;
+    }
+
+    function setInstrument(index) {
+        state.currentInstrument = index;
+        const theme = THEMES[index];
+        
+        // Update CSS Variables for UI
+        document.documentElement.style.setProperty('--theme-color', theme.color);
+        document.documentElement.style.setProperty('--theme-glow', theme.glow);
+        
+        // Update Buttons
+        instBtns.forEach((btn, i) => {
+            btn.classList.toggle('active', i === index);
+        });
+    }
+
+    function onHandResults(results) {
+        state.hands.forEach((h, i) => {
+            if (h.landmarks && h.landmarks[9]) {
+                state.prevHandPos[i] = { x: h.landmarks[9].x, y: h.landmarks[9].y };
+            }
+        });
+
+        state.hands = [];
+        let totalFingers = 0;
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            results.multiHandLandmarks.forEach((landmarks, i) => {
+                const handedness = results.multiHandedness[i].label;
+                const fingers = countFingers(landmarks, handedness);
+                totalFingers += fingers;
+                state.hands.push({
+                    landmarks, handedness, fingers,
+                    centerX: landmarks[9].x, centerY: landmarks[9].y
+                });
+            });
+        }
+
+        document.getElementById('stat-hands').textContent = state.hands.length;
+        document.getElementById('stat-fingers').textContent = totalFingers;
+
+        // Auto-switch instrument based on finger count
+        if (totalFingers > 0 && totalFingers <= 5) {
+            setInstrument(totalFingers - 1);
+        }
+
+        state.hands.forEach((hand, i) => {
+            if (i < 2) {
+                state.targetPitch[i] = 1.0 - hand.centerX;
+                const yNorm = hand.centerY;
+                state.targetFilter = 200 + (1.0 - yNorm) * 4000;
+                state.targetVol = Math.max(0, (1.0 - yNorm) * 0.6);
+            }
+        });
+
+        if (state.hands.length === 0) {
+            state.targetVol = 0;
+        }
+    }
+
+    // ==========================================
+    // MAIN LOOP
+    // ==========================================
+    let camera;
+
+    async function startApp() {
+        document.getElementById('start-screen').classList.add('hidden');
+        initAudio();
+        initHands();
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        camera = new Camera(videoElement, {
+            onFrame: async () => { await handsModule.send({ image: videoElement }); },
+            width: 640, height: 480
+        });
+        await camera.start();
+        state.isRunning = true;
+        requestAnimationFrame(mainLoop);
+    }
+
+    function mainLoop(timestamp) {
+        if (!state.isRunning) return;
+        state.frameCount++;
+        if (timestamp - state.lastFpsUpdate > 1000) {
+            state.fps = state.frameCount;
+            state.frameCount = 0;
+            state.lastFpsUpdate = timestamp;
+            document.getElementById('stat-fps').textContent = state.fps;
+            document.getElementById('stat-vol').textContent = Math.round(state.currentVol * 100) + '%';
+        }
+        updateAudio();
+        drawVisuals();
+        requestAnimationFrame(mainLoop);
+    }
+
+    // ==========================================
+    // UI EVENTS
+    // ==========================================
+    document.getElementById('start-btn').addEventListener('click', startApp);
+    
+    instBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            setInstrument(parseInt(e.target.dataset.inst));
+        });
+    });
+
+    document.getElementById('btn-help').addEventListener('click', () => {
+        document.getElementById('help-modal').classList.toggle('visible');
+    });
+    document.getElementById('close-help').addEventListener('click', () => {
+        document.getElementById('help-modal').classList.remove('visible');
+    });
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+    });
+    document.getElementById('btn-camera').addEventListener('click', async () => {
+        if (camera) {
+            // Toggle logic would go here
+        }
+    });
+
+</script>
+</body>
+</html>
